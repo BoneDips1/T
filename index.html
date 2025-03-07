@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Question Order Game</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
     <style>
         body {
             background: #1a1a1a;
@@ -12,7 +14,6 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            touch-action: none; /* Prevent default touch scrolling */
         }
         
         #container {
@@ -25,7 +26,6 @@
             padding: 10px;
             background: #2d2d2d;
             border-radius: 5px;
-            position: relative;
         }
         
         .question-item {
@@ -41,12 +41,10 @@
             user-select: none;
             -webkit-user-select: none;
             -ms-user-select: none;
-            position: relative;
-            z-index: 1;
         }
         
         .question-item:hover,
-        .question-item.dragging {
+        .question-item.ui-sortable-helper {
             background: #505050;
         }
         
@@ -181,100 +179,20 @@
             );
         });
         
-        // Custom drag-and-drop logic
-        const items = document.querySelectorAll('.question-item');
-        let draggedItem = null;
-        let offsetY = 0;
-
-        items.forEach(item => {
-            // Mouse events
-            item.addEventListener('mousedown', startDragMouse);
-            item.addEventListener('touchstart', startDragTouch, { passive: false });
-
-            function startDragMouse(e) {
-                draggedItem = item;
-                offsetY = e.clientY - item.getBoundingClientRect().top;
-                item.classList.add('dragging');
-                document.addEventListener('mousemove', dragMouse);
-                document.addEventListener('mouseup', stopDragMouse);
-            }
-
-            function startDragTouch(e) {
-                e.preventDefault();
-                draggedItem = item;
-                offsetY = e.touches[0].clientY - item.getBoundingClientRect().top;
-                item.classList.add('dragging');
-                document.addEventListener('touchmove', dragTouch, { passive: false });
-                document.addEventListener('touchend', stopDragTouch);
-            }
-
-            function dragMouse(e) {
-                if (!draggedItem) return;
-                const y = e.clientY - offsetY;
-                draggedItem.style.position = 'absolute';
-                draggedItem.style.top = `${y}px`;
-                moveItem(draggedItem, y);
-            }
-
-            function dragTouch(e) {
-                e.preventDefault();
-                if (!draggedItem) return;
-                const y = e.touches[0].clientY - offsetY;
-                draggedItem.style.position = 'absolute';
-                draggedItem.style.top = `${y}px`;
-                moveItem(draggedItem, y);
-            }
-
-            function stopDragMouse() {
-                if (draggedItem) {
-                    draggedItem.classList.remove('dragging');
-                    draggedItem.style.position = 'relative';
-                    draggedItem.style.top = '0';
-                    draggedItem = null;
-                    updateOrder();
-                }
-                document.removeEventListener('mousemove', dragMouse);
-                document.removeEventListener('mouseup', stopDragMouse);
-            }
-
-            function stopDragTouch() {
-                if (draggedItem) {
-                    draggedItem.classList.remove('dragging');
-                    draggedItem.style.position = 'relative';
-                    draggedItem.style.top = '0';
-                    draggedItem = null;
-                    updateOrder();
-                }
-                document.removeEventListener('touchmove', dragTouch);
-                document.removeEventListener('touchend', stopDragTouch);
-            }
-        });
-
-        function moveItem(dragged, y) {
-            const items = [...document.querySelectorAll('.question-item:not(.dragging)')];
-            const draggedRect = dragged.getBoundingClientRect();
-            const draggedCenter = y + draggedRect.height / 2;
-
-            items.forEach(item => {
-                const rect = item.getBoundingClientRect();
-                const itemCenter = rect.top + rect.height / 2;
-
-                if (draggedCenter < itemCenter && dragged.nextSibling !== item) {
-                    item.before(dragged);
-                } else if (draggedCenter > itemCenter && dragged.previousSibling !== item) {
-                    item.after(dragged);
-                }
-            });
-        }
-
-        function updateOrder() {
-            currentOrder = [];
-            $('.question-item').each(function() {
-                currentOrder.push($(this).text());
-            });
-            updateDisplay();
-        }
-
+        $('#question-list').sortable({
+            update: function(event, ui) {
+                currentOrder = [];
+                $('.question-item').each(function() {
+                    currentOrder.push($(this).text());
+                });
+                updateDisplay();
+            },
+            tolerance: "pointer", // Improves accuracy for touch and mouse
+            scroll: true,         // Enables scrolling on mobile
+            scrollSensitivity: 100,
+            scrollSpeed: 10
+        }).disableSelection(); // Prevents text selection during drag
+        
         updateDisplay();
     }
 
