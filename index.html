@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Question Order Game</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <style>
         body {
             background: #1a1a1a;
@@ -13,7 +12,7 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            touch-action: none; /* Prevents default touch behaviors like scrolling */
+            touch-action: none; /* Prevent default touch scrolling */
         }
         
         #container {
@@ -26,6 +25,7 @@
             padding: 10px;
             background: #2d2d2d;
             border-radius: 5px;
+            position: relative;
         }
         
         .question-item {
@@ -35,16 +35,18 @@
             border-radius: 5px;
             cursor: move;
             transition: all 0.3s ease;
-            min-height: 50px; /* Larger touch target */
+            min-height: 50px;
             font-size: 16px;
             line-height: 1.4;
-            user-select: none; /* Prevents text selection on drag */
+            user-select: none;
             -webkit-user-select: none;
             -ms-user-select: none;
+            position: relative;
+            z-index: 1;
         }
         
         .question-item:hover,
-        .question-item:active {
+        .question-item.dragging {
             background: #505050;
         }
         
@@ -58,14 +60,14 @@
             display: flex;
             justify-content: center;
             gap: 20px;
-            flex-wrap: wrap; /* Responsive buttons */
+            flex-wrap: wrap;
         }
         
         #reset-btn, #highlight-btn {
             background: #ff4444;
             color: white;
             border: none;
-            padding: 15px 25px; /* Larger tap area */
+            padding: 15px 25px;
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
@@ -83,7 +85,6 @@
             background: #00cccc !important;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 600px) {
             #container {
                 padding: 10px;
@@ -180,22 +181,100 @@
             );
         });
         
-        // Enable sortable with touch support
-        $('#question-list').sortable({
-            update: function(event, ui) {
-                currentOrder = [];
-                $('.question-item').each(function() {
-                    currentOrder.push($(this).text());
-                });
-                updateDisplay();
-            },
-            // Add touch tolerance and scroll sensitivity
-            tolerance: "pointer",
-            scroll: true,
-            scrollSensitivity: 100,
-            scrollSpeed: 10
-        }).disableSelection(); // Prevents text selection
-        
+        // Custom drag-and-drop logic
+        const items = document.querySelectorAll('.question-item');
+        let draggedItem = null;
+        let offsetY = 0;
+
+        items.forEach(item => {
+            // Mouse events
+            item.addEventListener('mousedown', startDragMouse);
+            item.addEventListener('touchstart', startDragTouch, { passive: false });
+
+            function startDragMouse(e) {
+                draggedItem = item;
+                offsetY = e.clientY - item.getBoundingClientRect().top;
+                item.classList.add('dragging');
+                document.addEventListener('mousemove', dragMouse);
+                document.addEventListener('mouseup', stopDragMouse);
+            }
+
+            function startDragTouch(e) {
+                e.preventDefault();
+                draggedItem = item;
+                offsetY = e.touches[0].clientY - item.getBoundingClientRect().top;
+                item.classList.add('dragging');
+                document.addEventListener('touchmove', dragTouch, { passive: false });
+                document.addEventListener('touchend', stopDragTouch);
+            }
+
+            function dragMouse(e) {
+                if (!draggedItem) return;
+                const y = e.clientY - offsetY;
+                draggedItem.style.position = 'absolute';
+                draggedItem.style.top = `${y}px`;
+                moveItem(draggedItem, y);
+            }
+
+            function dragTouch(e) {
+                e.preventDefault();
+                if (!draggedItem) return;
+                const y = e.touches[0].clientY - offsetY;
+                draggedItem.style.position = 'absolute';
+                draggedItem.style.top = `${y}px`;
+                moveItem(draggedItem, y);
+            }
+
+            function stopDragMouse() {
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                    draggedItem.style.position = 'relative';
+                    draggedItem.style.top = '0';
+                    draggedItem = null;
+                    updateOrder();
+                }
+                document.removeEventListener('mousemove', dragMouse);
+                document.removeEventListener('mouseup', stopDragMouse);
+            }
+
+            function stopDragTouch() {
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                    draggedItem.style.position = 'relative';
+                    draggedItem.style.top = '0';
+                    draggedItem = null;
+                    updateOrder();
+                }
+                document.removeEventListener('touchmove', dragTouch);
+                document.removeEventListener('touchend', stopDragTouch);
+            }
+        });
+
+        function moveItem(dragged, y) {
+            const items = [...document.querySelectorAll('.question-item:not(.dragging)')];
+            const draggedRect = dragged.getBoundingClientRect();
+            const draggedCenter = y + draggedRect.height / 2;
+
+            items.forEach(item => {
+                const rect = item.getBoundingClientRect();
+                const itemCenter = rect.top + rect.height / 2;
+
+                if (draggedCenter < itemCenter && dragged.nextSibling !== item) {
+                    item.before(dragged);
+                } else if (draggedCenter > itemCenter && dragged.previousSibling !== item) {
+                    item.after(dragged);
+                }
+            });
+        }
+
+        function updateOrder() {
+            currentOrder = [];
+            $('.question-item').each(function() {
+                currentOrder.push($(this).text());
+            });
+            updateDisplay();
+        }
+
         updateDisplay();
     }
 
@@ -221,14 +300,6 @@
 
         $('#highlight-btn').click(function() {
             highlightCorrect();
-        });
-
-        // Optional: Add custom touch event handling for finer control (if needed)
-        // This is handled by jQuery UI Sortable, but you can extend it further
-        $('.question-item').on('touchstart mousedown', function(e) {
-            $(this).css('opacity', '0.8'); // Visual feedback
-        }).on('touchend mouseup', function(e) {
-            $(this).css('opacity', '1');
         });
     });
     </script>
