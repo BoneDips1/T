@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Order Game</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        #container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        #question-list {
+            min-height: 300px;
+            padding: 10px;
+            background: #2d2d2d;
+            border-radius: 5px;
+        }
+        
+        .question-item {
+            background: #404040;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        
+        .question-item:hover {
+            background: #505050;
+        }
+        
+        #percentage {
+            font-size: 24px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        #reset-btn, #highlight-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #reset-btn:hover, #highlight-btn:hover {
+            background: #ff6666;
+        }
+        
+        .correct {
+            background: #00cc00 !important;
+        }
+        
+        .temp-highlight {
+            background: #00cccc !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="percentage">Score: 0% (0/19)</div>
+        <div id="question-list"></div>
+        <div class="button-container">
+            <button id="reset-btn">Reset</button>
+            <button id="highlight-btn">Highlight Correct</button>
+        </div>
+    </div>
+
+    <script>
+    const correctOrder = [
+            "\"now i will start my air brake test\"",
+            "first thing, chock wheels.",
+            "get in, buckle up, \"this is my seatbelt, properly mounted and secure, no rips or damage\".",
+            "start the truck.",
+            "build up air pressure to 120-140 psi, keep rpm between 10-15, steady.",
+            "listen for sneeze and if the air pressure is between 120-140, turn the truck off.",
+            "turn truck on but don't start it yet, wait for abs light to go off.",
+            "push in both valves, wait for air pressure to stabilize at 100 psi.",
+            "next we apply pressure to the brake pedal, we should not lose more than 4psi in a minute. \"ask for a 1 minute time\"",
+            "he will say \"time\" then i say \"i did not lose more than 4 psi in 1 minute\".",
+            "fan the brake until the warning sign and buzzard sound come on, between 50-60 psi, then pump between 20-40 until both valves pop out.",
+            "start truck, rebuild air pressure to 120-140 psi, listen for sneeze.",
+            "\"now i'm going to unchock my wheel\" take seatbelt off, get out and unchock wheel.",
+            "get back in the truck, buckle up.",
+            "preform a tug test. \"push the tractor brake to test the trailer brake. push the trailer brake to the test the tractor brake\".",
+            "apply brake first, push the tractor brake, put the truck in drive, tug, put truck back to neutral, pull tractor brake out. \"my tractor brake is working properly\".",
+            "apply brake, push the trailer brake, put truck in drive, tug, put truck back in neutral, pull trailer brake out. \"my trailer brake is working properly\".",
+            "now test the service brake \"i'm going to drive 3-5 miles and come to a smooth stop\", apply brake, push both valves in, put truck in drive, get truck to 3-5 mps, come to a smooth stop, pop yellow(tractor brake) out, shift to neutral. \"my service brake is working properly\".",
+            "\"this concludes my air brake test.\"",
+        ];
+        
+        let currentOrder = [];
+
+        function shuffleArray(array) {
+            let shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function calculateScore() {
+            let correctCount = 0;
+            $('.question-item').each(function(index) {
+                if ($(this).text() === correctOrder[index]) {
+                    correctCount++;
+                }
+            });
+            return {
+                correct: correctCount,
+                total: correctOrder.length,
+                percentage: Math.round((correctCount / correctOrder.length) * 100)
+            };
+        }
+
+        function updateDisplay() {
+            const score = calculateScore();
+            $('#percentage').text(`Score: ${score.percentage}% (${score.correct}/${score.total})`);
+            
+            if (score.percentage === 100) {
+                $('.question-item').addClass('correct');
+            } else {
+                $('.question-item').removeClass('correct');
+            }
+        }
+
+        function renderQuestions() {
+            currentOrder = shuffleArray(correctOrder);
+            $('#question-list').empty();
+            
+            currentOrder.forEach((question, index) => {
+                $('#question-list').append(
+                    `<div class="question-item" data-index="${index}">${question}</div>`
+                );
+            });
+            
+            $('#question-list').sortable({
+                update: function(event, ui) {
+                    currentOrder = [];
+                    $('.question-item').each(function() {
+                        currentOrder.push($(this).text());
+                    });
+                    updateDisplay();
+                }
+            });
+            
+            updateDisplay();
+        }
+
+        function highlightCorrect() {
+            $('.question-item').each(function(index) {
+                if ($(this).text() === correctOrder[index]) {
+                    $(this).addClass('temp-highlight');
+                }
+            });
+            
+            setTimeout(() => {
+                $('.question-item').removeClass('temp-highlight');
+                updateDisplay();
+            }, 10000);
+        }
+
+        $(document).ready(function() {
+            renderQuestions();
+
+            $('#reset-btn').click(function() {
+                renderQuestions();
+            });
+
+            $('#highlight-btn').click(function() {
+                highlightCorrect();
+            });
+        });
+    </script>
+</body>
+</html>
